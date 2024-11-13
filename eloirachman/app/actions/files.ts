@@ -120,15 +120,33 @@ export async function getProjectFiles(projectId: string) {
   }
 
   try {
+    // Add cache control headers to prevent caching
     const { data, error } = await supabase
       .from('documents')
       .select('*')
       .eq('project_id', projectId)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
+      .throwOnError() // This will throw on any error
+      .abortSignal(new AbortController().signal) // This helps prevent caching
 
     if (error) throw error
-    return data
+
+    // Double-check that we're not returning deleted files
+    const { data: existingFiles, error: storageError } = await supabase.storage
+      .from('documents')
+      .list(`${projectId}`)
+
+    if (storageError) throw storageError
+
+    // Only return files that still exist in storage
+    const existingFileNames = new Set(existingFiles.map(f => f.name))
+    const validFiles = data.filter(file => {
+      const fileName = file.storage_key.split('/').pop()
+      return existingFileNames.has(fileName)
+    })
+
+    return validFiles
   } catch (error) {
     console.error('Error fetching files:', error)
     throw error
@@ -174,6 +192,53 @@ export async function downloadFile(fileId: string) {
     return data.signedUrl
   } catch (error) {
     console.error('Error downloading file:', error)
+    throw error
+  }
+}
+
+export async function deleteFile(fileId: string, projectId: string) {
+  const supabase = createClient()
+  
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  
+  if (userError || !user) {
+    throw new Error('Unauthorized')
+  }
+
+  try {
+    // First get the file metadata
+    const { data: file, error: fileError } = await supabase
+      .from('documents')
+      .select('storage_key')
+      .eq('id', fileId)
+      .single()
+
+    if (fileError) throw fileError
+
+    // Delete from storage
+    const { error: storageError } = await supabase.storage
+      .from('documents')
+      .remove([file.storage_key])
+
+    if (storageError) throw storageError
+
+    // Delete from database
+    const { error: deleteError } = await supabase
+      .from('documents')
+      .delete()
+      .eq('id', fileId)
+      .eq('user_id', user.id)
+
+    if (deleteError) throw deleteError
+
+    // Add multiple revalidation paths
+    revalidatePath(`/projects/${projectId}`)
+    revalidatePath('/dashboard')
+    revalidatePath('/')
+    
+    return { success: true }
+  } catch (error) {
+    console.error('Error deleting file:', error)
     throw error
   }
 } 

@@ -1,40 +1,66 @@
 "use client";
 
-import { useSession, signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Icons } from "@/components/icons";
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { useState } from 'react'
+import { useToast } from '@/components/ui/use-toast'
 
 export default function SignIn() {
-  const { data: session } = useSession();
-  const router = useRouter();
+  const [loading, setLoading] = useState(false)
+  const router = useRouter()
+  const supabase = createClientComponentClient()
+  const { toast } = useToast()
 
-  if (session) {
-    router.push("/dashboard");
-    return null;
+  const handleSignIn = async () => {
+    try {
+      setLoading(true)
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      })
+
+      if (error) {
+        console.error('Auth error:', error)
+        toast({
+          title: 'Authentication Error',
+          description: error.message,
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      console.error('Sign in error:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to sign in. Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <Card className="w-[400px]">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Welcome back</CardTitle>
-          <CardDescription className="text-center">
-            Sign in to your account to continue
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <Button
-            variant="outline"
-            onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-            className="w-full"
-          >
-            <Icons.google className="mr-2 h-4 w-4" />
-            Sign in with Google
-          </Button>
-        </CardContent>
-      </Card>
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="mx-auto max-w-sm space-y-4 px-4">
+        <div className="space-y-2 text-center">
+          <h1 className="text-3xl font-bold">Welcome back</h1>
+          <p className="text-gray-500">Sign in to your account to continue</p>
+        </div>
+        <Button
+          className="w-full"
+          onClick={handleSignIn}
+          disabled={loading}
+        >
+          {loading ? 'Signing in...' : 'Sign in with Google'}
+        </Button>
+      </div>
     </div>
-  );
+  )
 } 

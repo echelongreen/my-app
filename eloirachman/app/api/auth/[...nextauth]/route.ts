@@ -1,7 +1,7 @@
-import { NextAuthOptions } from "next-auth";
-import NextAuth from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
-import { supabase } from "@/lib/supabase";
+import { createClient } from '@/lib/supabase/server'
+import { NextAuthOptions } from "next-auth"
+import NextAuth from "next-auth"
+import GoogleProvider from "next-auth/providers/google"
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -11,32 +11,19 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, account, profile }) {
-      if (account) {
-        token.accessToken = account.access_token;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (session?.user) {
-        session.user.id = token.sub;
-      }
-      return session;
-    },
-    async signIn({ user, account }) {
+    async signIn({ user }) {
       if (!user.email) return false;
       
+      const supabase = createClient()
+      
       try {
-        // First, try to get the user
         const { data: existingUser, error: queryError } = await supabase
           .from('users')
-          .select('*')
+          .select('id')
           .eq('email', user.email)
-          .single();
+          .single()
 
-        // If user doesn't exist and no error (other than not found)
         if (!existingUser && (!queryError || queryError.code === 'PGRST116')) {
-          // Create new user
           const { error: insertError } = await supabase
             .from('users')
             .insert({
@@ -44,26 +31,29 @@ export const authOptions: NextAuthOptions = {
               email: user.email,
               name: user.name,
               image: user.image,
-            });
+            })
 
-          if (insertError) {
-            console.error('Error creating user:', insertError);
-            // Continue even if insert fails
-            return true;
-          }
-        } else if (queryError && queryError.code !== 'PGRST116') {
-          console.error('Error checking user:', queryError);
-          // Continue even if query fails
-          return true;
+          if (insertError) throw insertError
         }
 
-        return true;
+        return true
       } catch (error) {
-        console.error('Error in signIn callback:', error);
-        // Continue even if there's an error
-        return true;
+        console.error('Error in signIn callback:', error)
+        return false
       }
     },
+    async session({ session, token }) {
+      if (session?.user) {
+        session.user.id = token.sub
+      }
+      return session
+    },
+    async jwt({ token, user, account }) {
+      if (user) {
+        token.sub = user.id
+      }
+      return token
+    }
   },
   pages: {
     signIn: '/auth/signin',
@@ -71,7 +61,7 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === 'development',
-};
+}
 
-const handler = NextAuth(authOptions);
-export { handler as GET, handler as POST };
+const handler = NextAuth(authOptions)
+export { handler as GET, handler as POST }

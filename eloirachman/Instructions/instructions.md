@@ -1,5 +1,6 @@
 # Product Requirements Document (PRD)
 
+
 ## Project Overview
 
 This web application is designed to provide comprehensive project management capabilities, integrating user authentication, project tracking, task management, document handling, and chat functionalities. A key feature is the ability to interact with project files using Retrieval Augmented Generation (RAG), enhancing productivity and collaboration within project teams.

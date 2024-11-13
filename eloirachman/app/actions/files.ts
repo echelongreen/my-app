@@ -143,4 +143,37 @@ export async function getFileUrl(path: string) {
     .getPublicUrl(path)
 
   return publicUrl
+}
+
+export async function downloadFile(fileId: string) {
+  const supabase = createClient()
+  
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  
+  if (userError || !user) {
+    throw new Error('Unauthorized')
+  }
+
+  try {
+    // First get the file metadata
+    const { data: file, error: fileError } = await supabase
+      .from('documents')
+      .select('storage_key')
+      .eq('id', fileId)
+      .single()
+
+    if (fileError) throw fileError
+
+    // Then get the download URL
+    const { data, error: downloadError } = await supabase.storage
+      .from('documents')
+      .createSignedUrl(file.storage_key, 60) // URL valid for 60 seconds
+
+    if (downloadError) throw downloadError
+
+    return data.signedUrl
+  } catch (error) {
+    console.error('Error downloading file:', error)
+    throw error
+  }
 } 

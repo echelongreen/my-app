@@ -98,6 +98,15 @@ export default async function ProjectPage({
                         </p>
                       </div>
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      asChild
+                    >
+                      <Link href={`/api/files/${file.id}`}>
+                        Download
+                      </Link>
+                    </Button>
                   </div>
                 ))}
               </div>

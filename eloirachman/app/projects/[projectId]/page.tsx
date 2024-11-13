@@ -2,9 +2,12 @@ import { getProject } from '@/app/actions/projects'
 import { getTasks } from '@/app/actions/tasks'
 import { notFound } from 'next/navigation'
 import { format } from 'date-fns'
-import { Calendar, Clock } from 'lucide-react'
+import { Calendar, Clock, ArrowLeft } from 'lucide-react'
 import { CreateTaskButton } from '@/components/task/create-task-button'
 import { TaskList } from '@/components/task/task-list'
+import { EditProjectForm } from '@/components/project/edit-project-form'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 
 export default async function ProjectPage({
   params: { projectId },
@@ -23,10 +26,15 @@ export default async function ProjectPage({
   return (
     <main className="container mx-auto p-4">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold mb-2">{project.name}</h1>
-        {project.description && (
-          <p className="text-gray-600 mb-6">{project.description}</p>
-        )}
+        <div className="mb-6">
+          <Link href="/dashboard">
+            <Button variant="ghost" className="mb-4">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Dashboard
+            </Button>
+          </Link>
+          <EditProjectForm project={project} />
+        </div>
 
         <div className="grid gap-4 md:grid-cols-2 mb-8">
           {project.start_date && (

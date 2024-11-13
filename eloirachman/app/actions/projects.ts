@@ -11,6 +11,14 @@ export type ProjectFormData = {
   endDate?: Date
 }
 
+export type ProjectUpdateData = {
+  id: string
+  name: string
+  description?: string | null
+  startDate?: Date
+  endDate?: Date
+}
+
 export async function createProject(data: ProjectFormData) {
   const supabase = createClient()
   
@@ -92,5 +100,39 @@ export async function getProject(projectId: string) {
   } catch (error) {
     console.error('Error fetching project:', error);
     return null;
+  }
+}
+
+export async function updateProject(data: ProjectUpdateData) {
+  const supabase = createClient()
+  
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  
+  if (userError || !user) {
+    throw new Error('Unauthorized')
+  }
+
+  try {
+    const { error } = await supabase
+      .from('projects')
+      .update({
+        name: data.name,
+        description: data.description,
+        start_date: data.startDate?.toISOString(),
+        end_date: data.endDate?.toISOString(),
+      })
+      .eq('id', data.id)
+      .eq('user_id', user.id)
+
+    if (error) {
+      console.error('Supabase error:', error)
+      throw error
+    }
+
+    revalidatePath(`/projects/${data.id}`)
+    return { success: true }
+  } catch (error) {
+    console.error('Error updating project:', error)
+    throw error
   }
 }

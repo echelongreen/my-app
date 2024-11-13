@@ -26,11 +26,13 @@ import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { createTask } from "@/app/actions/tasks";
+import { UserSelect } from "@/components/user/user-select";
 
 export function CreateTaskButton({ projectId }: { projectId: string }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [dueDate, setDueDate] = useState<Date>();
+  const [assigneeId, setAssigneeId] = useState<string>();
   const { toast } = useToast();
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -46,6 +48,7 @@ export function CreateTaskButton({ projectId }: { projectId: string }) {
         priority: formData.get("priority") as string,
         dueDate,
         projectId,
+        assigneeId,
       });
 
       toast({
@@ -109,6 +112,13 @@ export function CreateTaskButton({ projectId }: { projectId: string }) {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div>
+            <Label>Assign To</Label>
+            <UserSelect
+              value={assigneeId}
+              onChange={setAssigneeId}
+            />
           </div>
           <div>
             <Label>Due Date</Label>

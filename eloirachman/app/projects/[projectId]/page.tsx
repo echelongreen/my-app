@@ -15,16 +15,19 @@ import { FileUpload } from '@/components/file/file-upload'
 import { getProjectFiles } from '@/app/actions/files'
 import { DeleteFileButton } from '@/components/file/delete-file-button'
 import { FileList } from '@/components/file/file-list'
+import { ChatInterface } from "@/components/chat/chat-interface";
+import { getChatMessages } from '@/app/actions/chat'
 
 export default async function ProjectPage({
   params: { projectId },
 }: {
   params: { projectId: string }
 }) {
-  const [project, tasks, files] = await Promise.all([
+  const [project, tasks, files, messages] = await Promise.all([
     getProject(projectId),
     getTasks(projectId),
-    getProjectFiles(projectId)
+    getProjectFiles(projectId),
+    getChatMessages(projectId)
   ])
 
   if (!project) {
@@ -92,7 +95,7 @@ export default async function ProjectPage({
 
           <section>
             <h2 className="text-xl font-semibold mb-4">Chat</h2>
-            <p className="text-gray-500">Chat functionality coming soon</p>
+            <ChatInterface projectId={projectId} initialMessages={messages} />
           </section>
         </div>
       </div>

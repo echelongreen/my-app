@@ -5,21 +5,41 @@ import type { NextRequest } from 'next/server'
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
   const supabase = createMiddlewareClient({ req, res })
-  const { data: { session } } = await supabase.auth.getSession()
 
-  // If no session and trying to access protected route
-  if (!session && (req.nextUrl.pathname.startsWith('/dashboard') || req.nextUrl.pathname.startsWith('/projects'))) {
-    return NextResponse.redirect(new URL('/auth/signin', req.url))
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  // If user is not signed in and the current path is not /auth/signin or /auth/register
+  // redirect the user to /auth/signin
+  if (!session && !req.nextUrl.pathname.startsWith('/auth')) {
+    const redirectUrl = req.nextUrl.clone()
+    redirectUrl.pathname = '/auth/signin'
+    redirectUrl.searchParams.set('redirectedFrom', req.nextUrl.pathname)
+    return NextResponse.redirect(redirectUrl)
   }
 
-  // If session exists and trying to access auth routes
-  if (session && (req.nextUrl.pathname.startsWith('/auth'))) {
-    return NextResponse.redirect(new URL('/dashboard', req.url))
+  // If user is signed in and the current path is /auth/signin or /auth/register
+  // redirect the user to /dashboard
+  if (session && req.nextUrl.pathname.startsWith('/auth') && 
+      !req.nextUrl.pathname.startsWith('/auth/callback')) {
+    const redirectUrl = req.nextUrl.clone()
+    redirectUrl.pathname = '/dashboard'
+    return NextResponse.redirect(redirectUrl)
   }
 
   return res
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/projects/:path*', '/auth/:path*']
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     */
+    '/((?!_next/static|_next/image|favicon.ico|public).*)',
+  ],
 } 

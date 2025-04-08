@@ -28,13 +28,23 @@ export async function createProject(data: ProjectFormData) {
     throw new Error('Unauthorized')
   }
 
+  // Get user's company
+  const { data: companyUser } = await supabase
+    .from('company_users')
+    .select('company_id')
+    .eq('user_id', user.id)
+    .single()
+
+  if (!companyUser) throw new Error('No company found')
+
   try {
     const { error } = await supabase.from('projects').insert({
       name: data.name,
       description: data.description,
       start_date: data.startDate?.toISOString(),
       end_date: data.endDate?.toISOString(),
-      user_id: user.id
+      company_id: companyUser.company_id,
+      created_by: user.id
     })
 
     if (error) {
@@ -53,29 +63,30 @@ export async function createProject(data: ProjectFormData) {
 export async function getProjects() {
   const supabase = createClient()
   
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-  
-  if (userError || !user) {
-    throw new Error('Unauthorized')
-  }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
 
-  try {
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+  // Get user's company
+  const { data: companyUser } = await supabase
+    .from('company_users')
+    .select('company_id')
+    .eq('user_id', user.id)
+    .single()
 
-    if (error) {
-      console.error('Supabase error:', error)
-      throw error
-    }
-    
-    return data
-  } catch (error) {
+  if (!companyUser) return null
+
+  const { data: projects, error } = await supabase
+    .from('projects')
+    .select('*')
+    .eq('company_id', companyUser.company_id)
+    .order('created_at', { ascending: false })
+
+  if (error) {
     console.error('Error fetching projects:', error)
-    throw error
+    return null
   }
+
+  return projects
 }
 
 export async function getProject(projectId: string) {
@@ -135,4 +146,33 @@ export async function updateProject(data: ProjectUpdateData) {
     console.error('Error updating project:', error)
     throw error
   }
+}
+
+export async function deleteProject(projectId: string) {
+  const supabase = createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  // Get user's company
+  const { data: companyUser } = await supabase
+    .from('company_users')
+    .select('company_id')
+    .eq('user_id', user.id)
+    .single()
+
+  if (!companyUser) throw new Error('No company found')
+
+  const { error } = await supabase
+    .from('projects')
+    .delete()
+    .eq('id', projectId)
+    .eq('company_id', companyUser.company_id)
+
+  if (error) {
+    console.error('Error deleting project:', error)
+    throw error
+  }
+
+  revalidatePath('/dashboard')
 }
